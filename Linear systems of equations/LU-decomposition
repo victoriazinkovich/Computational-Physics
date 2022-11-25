@@ -1,0 +1,56 @@
+using LinearAlgebra
+
+function lufact(A::AbstractMatrix)
+    n = size(A, 1)
+    L = diagm(0 => ones(n))
+    U = zeros(n, n)
+    Aₖ = float(copy(A))
+    
+    for k in 1:n-1
+        U[k, :] .= Aₖ[k, :]
+        L[:, k] .= Aₖ[:, k] ./ U[k, k]
+        Aₖ .-= L[:, k] * U[k, :]'
+    end
+    U[n, n] = Aₖ[n, n]
+    return LowerTriangular(L), UpperTriangular(U)
+end
+
+function solution_a()
+    U = [8 9 4 -1; 
+         0 4 1  0; 
+         0 0 -1 6; 
+         0 0 0 11]
+    b = [9, 3, -1, 2]
+
+    x = backwardsub(U, b)
+    return x , b - U * x
+end
+
+function solution_b()
+    A = [-2 1 0 0 0; 
+         1 -2 1 0 0; 
+         0 1 -2 1 0; 
+         0 0 1 -2 1;
+         0 0 0 1 -2;]
+    f = [1, 1, 1, 1, 1]
+    
+    x = tridiagsolve(A, b)
+    return x , f - A * x
+end
+
+function solution_c()
+    A = [1 8 -3  9; 
+         0 4 10 -2; 
+         8 2 -5  1; 
+         3 1  6 12]
+    b = [3, 6, 1, 4]
+    
+    L, U = lufact(A)
+    tmp = forwardsub(L, b)
+    x = backwardsub(U, tmp)
+    
+    return x, b - A * x
+end
+
+
+@show(solution_a(), solution_b(), solution_c())
