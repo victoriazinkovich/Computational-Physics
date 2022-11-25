@@ -1,0 +1,60 @@
+using LinearAlgebra
+
+function is_system_correct(matrix::Matrix, b::Vector)
+    x, y = size(matrix)
+    return (length(b) == x) && (length(b) == y) && !any(≈(0), diag(matrix))
+end
+
+function forwardsub(L::Matrix{T}, b::Vector{T}) where {T}
+    if !istril(L) || !is_system_correct(L, b)
+        throw(error("Error with lower matrix!"))
+    end
+    x1 = b[1] / L[1,1]
+    x = similar(b, Float64)
+    x[1] = x1
+    for i in 2:length(b)
+        s = zero(T)
+        j = 1
+        while i > j
+            s += L[i, j] * x[j]
+            j += 1
+        end
+        x[i] = (b[i] - s) / L[i,i]
+    end
+    return x
+end
+
+function backwardsub(U::Matrix{T}, b::Vector{T}) where {T}
+    if !istriu(U) || !is_system_correct(U, b)
+        throw(error("Error with lower matrix!"))
+    end
+    n = length(b)
+    x = similar(b, Float64)
+    
+    x[n] = b[n] / U[n,n]
+    for i in reverse(1:n-1)
+        s = zero(T)
+        j = i + 1
+        while j <= n
+            s += U[i,j] * x[j]
+            j += 1
+        end
+        x[i] = (b[i] - s) / U[i,i]
+    end
+    return x
+end
+
+
+L = [1 0 0 0; 
+     1 2 0 0; 
+     1 2 3 0; 
+     1 2 3 4]
+
+U = [1 3 4 3; 
+     0 3 4 3; 
+     0 0 3 3; 
+     0 0 0 1]
+
+b = [2, 4, 6, 8]
+
+@show(forwardsub(L, b), backwardsub(U, b))
