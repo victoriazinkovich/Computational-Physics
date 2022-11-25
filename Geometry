@@ -1,0 +1,97 @@
+module Points
+
+using LinearAlgebra
+
+export Point, neighbors, Circle, Square, center
+
+struct Point{T}
+    x::T
+    y::T
+end
+
+Point(x, y) = Point(promote(x, y)...)
+
+struct Circle{T}
+    o::Point{T}
+    radius::T
+end
+
+function Circle(p, r) 
+    xp, yp, r = promote(p.x, p.y, r)
+    p = Point(xp, yp)
+    return Circle(p, r)
+end
+
+struct Square{T}
+    o::Point{T}
+    side::T
+end
+
+function Square(p, side) 
+    xp, yp, side = promote(p.x, p.y, side)
+    p = Point(xp, yp)
+    return Square(p, side)
+end
+
+
+Base.:+(p1::Point, p2::Point)     = Point(p1.x + p2.x, p1.y + p2.y)
+Base.:-(p1::Point, p2::Point)     = Point(p1.x - p2.x, p1.y - p2.y)
+Base.:*(p1::Point, alpha::Number) = Point(p1.x * alpha, p1.y * alpha)
+Base.:*(alpha::Number, p::Point)  = p * alpha
+Base.:-(p::Point)                 = Point(-p.x, -p.y)
+Base.:/(p::Point, alpha::Number)  = !iszero(alpha) ? Point(p.x / alpha, p.y / alpha) : throw(DomainError(p1, "Division by zero"))
+
+LinearAlgebra.dot(p1::Point, p2::Point) = p1.x * p2.x + p1.y * p2.y
+LinearAlgebra.norm(p::Point) = sqrt(dot(p, p))
+
+dist(p::Point, q::Point) = norm(p - q)
+
+function neighbors(points, origin::Point, k::Int64)
+    newpoints = Point[]
+    
+    for p in points
+        if p != origin
+            push!(newpoints, p)
+        end
+    end
+    
+    k = min(k, length(newpoints))
+    dists = Float64[]
+    
+    for p in newpoints
+        push!(dists, dist(origin, p))
+    end
+    
+    for i in 1:length(newpoints)-1
+        for j in 1:length(newpoints)-1
+            if dists[j] > dists[j+1]
+                newpoints[j], newpoints[j+1] = newpoints[j+1], newpoints[j]
+                dists[j], dists[j+1] = dists[j+1], dists[j]
+            end
+        end
+    end
+    
+    neighbors = Point[]
+    neighbors = newpoints[1:k]
+    
+    return neighbors
+end
+
+Base.:in(point::Point, figure::Circle) = dist(point, figure.o) <= figure.radius
+Base.:in(point::Point, figure::Square) = abs(point.x - figure.o.x) <= figure.side / 2 && abs(point.y - figure.o.y) <= figure.side / 2
+
+center(points) = sum(points) / length(points)
+
+function center(points, figure::Union{Circle, Square})
+    start = Point(0, 0)
+    len = 0
+    for point in points
+        if point in figure
+            start += point 
+            len += 1
+        end
+    end
+    return start / len
+end
+
+end
