@@ -1,0 +1,48 @@
+using LinearAlgebra
+
+function is_system_correct(a::Vector, b::Vector, c::Vector, f::Vector)
+    return length(a) == length(b) == length(c) == length(f) && a[1] == c[length(c)] == 0 
+end
+
+function tridiagsolve(a::Vector, b::Vector, c::Vector, f::Vector)
+    if !is_system_correct(a, b, c, f)
+        throw(error("Error, system is incorrect!"))
+    end
+    n = length(f)
+    alpha = Vector{Float64}(undef, n)
+    beta  = Vector{Float64}(undef, n)
+    
+    alpha[1] = 0
+    beta[1]  = 0
+
+    for i in 1:n-1
+        alpha[i+1] = -c[i] / (a[i] * alpha[i] + b[i])
+        beta[i+1]  = (f[i] - a[i] * beta[i]) / (a[i] * alpha[i] + b[i])
+    end
+
+    x = similar(f, Float64)
+    x[n] = (f[n] - a[n] * beta[n]) / (a[n] * alpha[n] + b[n])
+    
+    for i in reverse(1:n-1)
+        x[i] = alpha[i+1] * x[i+1] + beta[i+1]
+    end
+    
+    return x
+end
+
+function tridiagsolve(A::Tridiagonal, f::Vector)
+    return tridiagsolve([0; A.dl], A.d, [A.du; 0], f)
+end
+    
+a = [0, 2, 2, 3, 4]     # под диагональю
+b = [1, 2, 3, 4, 5]
+c = [2, 3, 5, 6, 0]
+f = [1, 2, 3, 4, 7]
+
+A = Tridiagonal([1 2 0 0 0; 
+                 2 2 3 0 0; 
+                 0 2 3 5 0; 
+                 0 0 3 4 6; 
+                 0 0 0 4 5])
+
+@show(tridiagsolve(a, b, c, f), tridiagsolve(A, f))
