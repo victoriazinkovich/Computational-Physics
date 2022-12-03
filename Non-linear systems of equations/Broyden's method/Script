@@ -1,0 +1,89 @@
+using LinearAlgebra
+using Plots, LaTeXStrings
+
+function broydensys(f, x, J; maxiter=50, xtol=1e-6, ftol=1e-6) # Метод Бройдена
+    δx = float(similar(x))
+    yp, yn = similar.((δx, δx))
+    x = float(copy(x))
+    B = float(copy(J))
+    yn .= f(x)
+
+    for i in 1:maxiter
+        yp .= yn
+        δx .= .- (B \ yp)
+        x .+= δx
+        yn .= f(x)
+
+        norm(δx) < xtol && return x
+        norm(yn) < ftol && return x
+        
+        g = B * δx
+        B .+= (1 / dot(δx, δx)) .* (yn .- yp .- g) .* δx'
+    end
+    error("Превышено число итераций.")
+end
+
+function jacobianfd(f, x; y=f(x), δ=sqrt(eps())*max(norm(x), 1)) # Приближение якобиана конечной разностью
+    m, n = size(y, 1), size(x, 1)
+    J = zeros(m, n)
+    x = float(copy(x))
+    for j in 1:n
+        x[j] += δ
+        J[:, j] .= (f(x) .- y) ./ δ
+        x[j] -= δ
+    end
+    return J
+end
+
+Pr(Vr::Real, Tr::Real) = 8Tr / (3Vr - 1) - 3 / Vr^2
+μr(Vr::Real, Tr::Real) = -Tr * log( (3Vr - 1) / (2*exp(-0.5)) )  + Tr / (3Vr - 1) - 9 / (4*Vr)
+
+f(T) = x -> f(x, T)
+
+function f(x, T)
+    Vg, Vl = x
+    return [
+        Pr(Vg, T) - Pr(Vl, T),
+        μr(Vg, T) - μr(Vl, T),
+    ]
+end
+
+function solve(T, x)
+    foo = f(T)
+    return broydensys(foo, x, jacobianfd(foo, x))
+end
+
+
+V = range(0.34, 5; length=200)
+plt = plot(;
+    ylim=(0, 1.5),
+    xlim=(0, 4.0),
+    xlabel=L"V/V_c",
+    ylabel=L"P/P_c",
+    xtick=12,
+    ytick=6,
+    linewidth=1.5
+)
+
+Tr = (0.85, 0.88, 0.90, 0.93, 0.95, 0.97, 0.99)
+
+Vrg = Vector{Float64}(undef, 7)
+Vrl = Vector{Float64}(undef, 7)
+
+for i in 1:length(Tr)
+    if i <= 4
+        Vrg[i], Vrl[i] = solve(Tr[i], [0.5, 3.5])
+    else 
+        Vrg[i], Vrl[i] = solve(Tr[i], [0.7, 1.5])
+    end
+end
+        
+for (T, Vg, Vl) in zip(Tr, Vrg, Vrl)
+    plot!(V, Pr.(V, T); line=:dash, label=L"T_r = %$(T)")
+end
+
+plot!(Vrg, Pr.(Vrg, Tr), label=L"V_G", line=(1, :red, :solid), marker=(:circle, :red, 3, 0,4))
+plot!(Vrl, Pr.(Vrl, Tr), label=L"V_L", line=(1, :blue, :solid), marker=(:circle, :blue, 3, 0,4))
+
+
+display(plt)
